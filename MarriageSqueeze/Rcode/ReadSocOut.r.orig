@@ -1,0 +1,96 @@
+z2na<-function(x){x[x==0]<-NA;return(x)}
+
+ReadSocOut<-function(stem){
+  ## stem is path to directory + what comes before .opop
+  ## Will read .opop and .omar and assign useful names
+  ## Will skip reading omar if omar is zero length.
+  ## Will skip opox if empty 
+  print(paste("Looking in ",stem))
+  print("reading opop...")
+  
+  opop<-read.table(file=paste(stem,".opop",sep=''),sep="")
+  names(opop)<-c("pid","fem","group",
+                 "nev","dob","mom","pop","nesibm","nesibp",
+                 "lborn","marid","mstat","dod","fmult")
+  rownames(opop)<-opop$pid
+  lsout<-system(paste("ls -s ",paste(stem,".opox",sep=''),sep=""),intern=TRUE)
+  ## parse lsout to extract the size and convert to numeric
+  opox.size<-as.numeric( unlist(strsplit(split=" ", x=lsout ))[1])
+  
+  if(opox.size == 0){
+    print("NOT reading opox")
+    opox<-NA
+  }else{
+    print("reading opox")
+    opox<-read.table(file=paste(stem,".opox",sep=''),sep="")
+    rownames(dna)<-opop$pid
+  }
+  
+  ## get size of omar file
+  lsout<-system(paste("ls -s ",paste(stem,".omar",sep=''),sep=""),intern=TRUE)
+  ## parse lsout to extract the size and convert to numeric
+  omar.size<-as.numeric( unlist(strsplit(split=" ", x=lsout ))[1])
+  if(omar.size == 0){
+    print("skipping empty .omar file")
+    omar<-NA
+  }else{
+    print("reading omar")
+    omar<-read.table(file=paste(stem,".omar",sep=''),sep="")
+    names(omar)<-c("mid","wpid","hpid","dstart","dend",
+                   "rend","wprior","hprior")
+    
+  rownames(omar)<-omar$mid
+  }
+
+##### Transition history
+  ## get size of otx file
+  lsout<-system(paste("ls -s ",paste(stem,".otx",sep=''),sep=""),intern=TRUE)
+  ## parse lsout to extract the size and convert to numeric
+  otx.size<-as.numeric( unlist(strsplit(split=" ", x=lsout ))[1])
+  if(otx.size == 0){
+    print("skipping empty .otx  (transition history) file")
+    otx<-NA
+  }else{
+    print("reading otx (transition history")
+    otx<-read.table(file=paste(stem,".otx",sep=''),sep="")
+    names(otx)<-c("pid","dot","fromg","tog","pos")
+    
+  rownames(otx)<-paste(otx$pid,otx$pos,sep='')
+  }
+
+
+  return(foo<-list(opop=opop,
+              omar=omar,
+              opox=opox,
+                   otx=otx
+              ))
+}
+
+########################################################################
+## parse the .sup file so we can get at the socsim directives
+## this does not work well when there are more than one segments
+########################################################################
+parseSupfile<-function(supfile){
+##  supfile<-"~/SoS2013/CousinDiversity/CousinDiversity.sup"
+  lsout<-system(paste("ls -s ",supfile,sep=""),intern=TRUE)
+  ## parse lsout to extract the size and convert to numeric
+  file.size<-as.numeric( unlist(strsplit(split=" ", x=lsout ))[1])
+
+  if( file.size <= 0){
+    warning("supile empty or nonexistant");
+    stop()
+  }
+
+  pcmd<-paste("sed 's:\\*.*::g' ",
+              supfile,
+              "| sed '/^$/d'" )
+
+  Supfile<-system(pcmd,intern=TRUE)
+
+  Supfile<-Supfile[-grep(Supfile,pattern="execute")]
+  Supfile<-  strsplit(Supfile,split='\\s+',perl=TRUE)
+  names(Supfile)<-sapply(Supfile,function(x){return(c(x[1]))})
+  Supfile<-lapply(Supfile,function(x){return(x[-1])})
+               
+  return(Supfile)
+}
